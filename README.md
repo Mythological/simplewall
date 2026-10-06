@@ -1,331 +1,147 @@
 <h1 align="center">simplewall</h1>
 
-<p align="center">
-	<a href="https://github.com/henrypp/simplewall/releases"><img src="https://img.shields.io/github/v/release/henrypp/simplewall?style=flat-square&include_prereleases&label=version" /></a>
-	<a href="https://github.com/henrypp/simplewall/releases"><img src="https://img.shields.io/github/downloads/henrypp/simplewall/total.svg?style=flat-square" /></a>
-	<a href="https://github.com/henrypp/simplewall/issues"><img src="https://img.shields.io/github/issues-raw/henrypp/simplewall.svg?style=flat-square&label=issues" /></a>
-	<a href="https://github.com/henrypp/simplewall/graphs/contributors"><img src="https://img.shields.io/github/contributors/henrypp/simplewall?style=flat-square" /></a>
-	<a href="https://github.com/henrypp/simplewall/blob/master/LICENSE"><img src="https://img.shields.io/github/license/henrypp/simplewall?style=flat-square" /></a>
-</p>
-
-<p align="center">
-	<i>Definitely for advanced users.</i>
-</p>
-
 -------
 
 <p align="center">
 	<img src="/images/simplewall.png?cache" />
 </p>
+# simplewall: сборка из исходников и аудит безопасности
 
-### Description:
-Simple tool to configure [Windows Filtering Platform (WFP)](https://docs.microsoft.com/en-us/windows/win32/fwp/windows-filtering-platform-start-page) which can configure network activity on your computer.
+Сборка фаервола [simplewall](https://github.com/henrypp/simplewall) (автор [henrypp](https://github.com/henrypp)) из открытых исходников с проверкой кода на безопасность.
 
-The lightweight application is less than a megabyte, and it is compatible with Windows 7 SP1 and higher operating systems.
-You can download either the installer or portable version. For correct working you are require administrator rights.
+> Это неофициальная сборка. Автор simplewall к ней отношения не имеет. Официальные релизы, подписанные автором, публикуются на странице [Releases](https://github.com/henrypp/simplewall/releases).
 
-### Nota bene:
-Keep in mind, simplewall is not a control UI over Windows Firewall, and does not interact in any level with Windows Firewall. It works
-over Windows Filtering Platform (WFP) which is a set of internal API and system services that provide a platform for creating network filtering
-applications. Windows Filtering Platform is a development technology and not a firewall itself, but simplewall is the tool that uses this technology.
+## Коротко
 
-### Features:
-- Simple interface without annoying pop ups
-- [Rules editor](https://github.com/henrypp/simplewall#rules-editor) (create your own rules)
-- [Internal blocklist](https://crazymax.dev/WindowsSpyBlocker/blocking-rules/simplewall/) (block Windows spy / telemetry)
-- Dropped packets information with notification and logging to a file feature (win7+)
-- Allowed packets information with logging to a file feature (win8+)
-- Windows Subsystem for Linux (WSL) support
-- Windows Store support (win8+)
-- Windows services support
-- Free and open source
-- Localization support
-- IPv6 support
+| | |
+|---|---|
+| Что собрано | simplewall, коммит [`d6fa5dfa`](https://github.com/henrypp/simplewall/commit/d6fa5dfa) от 08.02.2025 (в окне «О программе» версия 3.8.5) |
+| Библиотека | [routine](https://github.com/henrypp/routine), коммит [`ff8f811`](https://github.com/henrypp/routine/commit/ff8f811) от 07.01.2025 |
+| Платформа | Windows 10/11, x64 |
+| Изменения в коде | нет, только флаг сборки `PlatformToolset=v145` |
+| Вредоносный код | не найден |
+| Найденные слабости | небезопасное автообновление (см. ниже), **отключите проверку обновлений** |
 
+## Почему не последняя версия
+
+simplewall состоит из двух репозиториев: самой программы и вспомогательной библиотеки `routine`. Автор продолжает выкладывать код simplewall, но обновления `routine` не публикует: последнее изменение кода в ней датировано 07.01.2025.
+
+Поэтому:
+
+- текущий `master` и все релизы начиная с **3.8.6** не собираются. Получается 665 ошибок компиляции, в публичной `routine` не хватает 33 функций;
+- релиз **3.8.5** тоже не собирается ни с одной опубликованной версией `routine`;
+- **`d6fa5dfa`** — последний коммит simplewall перед несовместимым изменением API (`9641e5b4`, 11.02.2025). Это самый свежий код, который можно собрать только из открытых исходников. Он новее релиза 3.8.5.
+
+Недостающие функции `routine` намеренно не дописывались: иначе это был бы уже не код автора.
+
+## Аудит безопасности
+
+Проверялись simplewall (`master` и `d6fa5dfa`) и `routine` (`ff8f811`), около 28 тыс. строк на C.
+
+### Что проверено, проблем нет
+
+- **Сеть.** Единственные сетевые запросы — проверка и загрузка обновлений с `github.com` / `raw.githubusercontent.com`. Телеметрии, аналитики и скрытых адресов нет. Все остальные URL в коде — ссылки в комментариях, на сайт автора или на страницы доната.
+- **Запуск процессов.** Только по действию пользователя: открыть ссылку, показать файл в проводнике, открыть regedit, перезапустить программу с правами администратора.
+- **Внедрение и обфускация.** Нет записи в чужие процессы (`WriteProcessMemory`, `CreateRemoteThread`), хуков, драйверов ядра, зашифрованного или закодированного кода. Фильтрация работает через штатный Windows Filtering Platform.
+- **Встроенные данные.** Файл `bin/profile_internal.bin` вшивается в exe как ресурс. Это сжатый LZNT1 XML с заголовком `SWC1` и SHA-256. После распаковки он побайтно совпадает с открытым `bin/profile_internal.xml`, хэш в заголовке тоже сходится.
+- **Изменения в системе.** Автозапуск и «запуск без UAC» (через планировщик задач) включаются только вручную в настройках.
+- **Сборка.** В `simplewall.vcxproj` нет pre/post-build команд, выполняется только компиляция.
+
+### Найденная слабость: небезопасное автообновление
+
+Код в `routine/src/routine.c` (загрузка) и `routine/src/rapp.c`, функция `_r_update_install` (установка).
+
+1. Если проверка TLS-сертификата сервера не прошла (`ERROR_WINHTTP_SECURE_FAILURE`), клиент повторяет запрос с флагами `SECURITY_FLAG_IGNORE_UNKNOWN_CA | SECURITY_FLAG_IGNORE_CERT_WRONG_USAGE`. Он принимает сертификат от недоверенного центра сертификации, в том числе самоподписанный.
+2. Скачанный установщик запускается с правами администратора (`/u /S`) **без проверки цифровой подписи и хэша**.
+
+**Последствия.** В чужой сети (публичный Wi-Fi, скомпрометированный роутер) злоумышленник может подменить обновление и выполнить свой код с правами администратора. Для этого пользователь должен нажать «установить» в окне обновления.
+
+**Что делать.** Отключите *Settings → Periodically check for updates* и обновляйтесь вручную: пересоберите из исходников или скачайте официальный установщик со страницы Releases и проверьте его подпись.
+
+## Сборка
+
+### Требования
+
+- Windows 10/11 x64.
+- [Visual Studio Build Tools 2026](https://visualstudio.microsoft.com/downloads/) с нагрузкой **Desktop development with C++** (MSVC v145, Windows SDK 10.0.26100).
+  Подойдёт и VS 2022 (toolset `v143`), тогда в команде сборки укажите `v143`.
+- Git.
+
+### 1. Исходники
+
+Библиотека `routine` должна лежать **рядом** с папкой simplewall: проект ищет её по пути `..\routine`. Сабмодули с относительными путями git сам не подтягивает.
+
+```powershell
+git clone https://github.com/henrypp/simplewall.git
+git clone https://github.com/henrypp/routine.git
+git -C simplewall checkout d6fa5dfa
+git -C routine checkout ff8f811
 ```
-To activate portable mode, create "simplewall.ini" in application folder, or move it from "%APPDATA%\Henry++\simplewall".
+
+### 2. Пакет C++/WinRT
+
+Проекту нужен NuGet-пакет `Microsoft.Windows.CppWinRT 2.0.230706.1`. Если `msbuild -t:restore` не находит его (на чистой машине в `%APPDATA%\NuGet\NuGet.Config` часто нет источников), скачайте пакет напрямую с nuget.org:
+
+```powershell
+$v   = "2.0.230706.1"
+$dst = "simplewall\packages\Microsoft.Windows.CppWinRT.$v"
+$pkg = "$env:TEMP\cppwinrt.$v.nupkg"
+Invoke-WebRequest "https://api.nuget.org/v3-flatcontainer/microsoft.windows.cppwinrt/$v/microsoft.windows.cppwinrt.$v.nupkg" -OutFile $pkg -UseBasicParsing
+Add-Type -A System.IO.Compression.FileSystem
+New-Item -ItemType Directory -Force $dst | Out-Null
+[IO.Compression.ZipFile]::ExtractToDirectory($pkg, (Resolve-Path $dst).Path)
+
+# cppwinrt.exe должен быть подписан Microsoft Corporation
+Get-AuthenticodeSignature "$dst\bin\cppwinrt.exe" | Select-Object Status, SignerCertificate
 ```
 
-### System requirements:
-- Windows 7, 8, 8.1, 10, 11 64-bit/ARM64
-- An SSE2-capable CPU
-- <s>KB2533623</s> [KB3063858](https://www.microsoft.com/en-us/download/details.aspx?id=47442) update for Windows 7 was required
+### 3. Компиляция
 
-### Donate:
-- [Bitcoin](https://www.blockchain.com/btc/address/1LrRTXPsvHcQWCNZotA9RcwjsGcRghG96c) (BTC)
-- [Ethereum](https://www.blockchain.com/explorer/addresses/eth/0xe2C84A62eb2a4EF154b19bec0c1c106734B95960) (ETH)
-- [Yandex Money](https://yoomoney.ru/to/4100115776040583) (RUB)
-- [Paypal](https://paypal.me/henrypp) (USD)
-
-### GPG Signature:
-Binaries have GPG signature `simplewall.exe.sig` in application folder.
-
-- Public key: [pubkey.asc](https://raw.githubusercontent.com/henrypp/builder/master/pubkey.asc) ([pgpkeys.eu](https://pgpkeys.eu/pks/lookup?op=index&fingerprint=on&search=0x5635B5FD))
-- Key ID: 0x5635B5FD
-- Fingerprint: D985 2361 1524 AB29 BE73 30AC 2881 20A7 5635 B5FD
-
-### Reviews of idiots:
-[<img src="/images/idiot_n1.png" />](https://alternativeto.net/software/simplewall-firewall/about/)
-
-Look at them, he does not know about [.gitmodules](https://github.com/henrypp/simplewall/blob/master/.gitmodules) and how to use, lol.
-
-PS: Without idiots we are not to be fun, yeah!
-
-### Installation:
-When install rules, you can choose two modes:
-- Permanent rules - rules are working until you <a href="#uninstall">disable it manually</a>.
-- Temporary rules - rules are reset after the next reboot.
-
-### Uninstall:
-When you uninstall simplewall, all previously configured filters stay alive in system.
-To remove all filters created by simplewall, start simplewall and press "Disable filters" button.
-
-### Command line:
-
-~~~
--install - enable filtering.
--install -temp - enable filtering until next reboot.
--install -silent - enable filtering without prompt.
--uninstall - remove all installed filters.
-~~~
-
-### Rules editor:
-simplewall have two types of custom user rules rules:
-- **Global rules:** rule applied for all applications.
-- **Special rules:** rule applied only for specified applications.
-
-<img src="/images/simplewall_rules.png?cache2" />
-
-### Rule syntax format:
-
-To set rule applications, open rule and then navigate to "Apps" tab.
-
-<details>
-<summary>Rule syntax format:</summary>
-
----
-- IP addresses `192.168.0.1; 192.168.0.1; [fc00::]`
-- IP addresses with port `192.168.0.1:80; 192.168.0.1:443; [fc00::]:443;`
-- IP ranges `192.168.0.1-192.168.0.255; 192.168.0.1-192.168.0.255;`
-- IP ranges (with port) `192.168.0.1-192.168.0.255:80; 192.168.0.1-192.168.0.255:443;` (v2.0.20+)
-- IP with prefix lengths (CIDR) `192.168.0.0/16; 192.168.0.0/24; fe80::/10`
-- Ports `21; 80; 443;`
-- Ports ranges `20-21; 49152-65534;`
-
-_To specify more than one ip, port and/or host, use semicolon._
----
-</details>
-
-<details>
-<summary>IPv4 CIDR blocks:</summary>
-
----
-| Address format | Mask |
-| -------- | ------- |
-| a.b.c.d/32 | 255.255.255.255 |
-| a.b.c.d/31 | 255.255.255.254 |
-| a.b.c.d/30 | 255.255.255.252 |
-| a.b.c.d/29 | 255.255.255.248 |
-| a.b.c.d/28 | 255.255.255.240 |
-| a.b.c.d/27 | 255.255.255.224 |
-| a.b.c.d/26 | 255.255.255.192 |
-| a.b.c.d/25 | 255.255.255.128 |
-| a.b.c.0/24 | 255.255.255.0|
-| a.b.c.0/23 | 255.255.254.0|
-| a.b.c.0/22 | 255.255.252.0|
-| a.b.c.0/21 | 255.255.248.0|
-| a.b.c.0/20 | 255.255.240.0|
-| a.b.c.0/19 | 255.255.224.0|
-| a.b.c.0/18 | 255.255.192.0|
-| a.b.c.0/17 | 255.255.128.0|
-| a.b.0.0/16 | 255.255.0.0|
-| a.b.0.0/15 | 255.254.0.0|
-| a.b.0.0/14 | 255.252.0.0|
-| a.b.0.0/13 | 255.248.0.0|
-| a.b.0.0/12 | 255.240.0.0|
-| a.b.0.0/11 | 255.224.0.0|
-| a.b.0.0/10 | 255.192.0.0|
-| a.b.0.0/9 | 255.128.0.0|
-| a.0.0.0/8 | 255.0.0.0|
-| a.0.0.0/7 | 254.0.0.0|
-| a.0.0.0/6 | 252.0.0.0|
-| a.0.0.0/5 | 248.0.0.0|
-| a.0.0.0/4 | 240.0.0.0|
-| a.0.0.0/3 | 224.0.0.0|
-| a.0.0.0/2 | 192.0.0.0|
-| a.0.0.0/1 | 128.0.0.0|
-| 0.0.0.0/0 | 0.0.0.0|
----
-</details>
-
-<details>
-<summary>IPv6 CIDR blocks:</summary>
-
----
-[IPv6 CIDR blocks](https://www.mediawiki.org/wiki/Help:Range_blocks/IPv6)
----
-</details>
-
-### FAQ:
-#### Q: Are internet connections blocked when simplewall is not running?
-A: Yes. Installed filters are working even if simplewall is terminated.
-
-#### Q: What apps are blocked in default configuration?
-A: By default, simplewall blocks **all** applications. You do not need to create custom rules to block specific applications.
-
-#### Q: Is it safe to use simplewall with Windows Firewall?
-A: Yes. You do not need to disable Windows Firewall. These two firewalls work independently.
-
-#### Q: How can i disable blocklist entirely?
-A: Open `Settings` -> `Blocklist` and then click the radio buttons labeled `Disable`.
-
-#### Q: Where is blacklist mode?
-A: Blacklist was removed many days ago for uselessness. But if you need it, you can still configure it.
-
-<details>
-<summary>Solution: Configure blacklist mode in simplewall:</summary>
-
----
-1) Open `Settings` -> `Rules`
-2) Uncheck `Block outbound for all` and `Block inbound for all` options.
-3) Create user rule (green cross on toolbar) with block action, any direction, `Block connection` name and empty remote and local rule.
-4) You can assign this rule for apps whatever you want to block network access.
----
-</details>
-
-#### Q: Why does my network icon have an exclamation mark?
-A: When you are connected to a network, Windows checks for internet connectivity using Active Probing. This feature is named as NCSI (Network Connectivity Status Indicator). You can resolve this problem in one of the following ways:
-
-<details>
-<summary>Solution 1: Enable NCSI through internal system rule:</summary>
-
----
-1) Open `System rules` tab.
-2) Allow `NCSI` rule (enabled by default).
----
-</details>
-
-<details>
-<summary>Solution 2: Disable NCSI through system registry:</summary>
-
----
-Create `Disable NCSI.reg` and import it into registry.
-
-```reg
-Windows Registry Editor Version 5.00
-
-[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\NetworkConnectivityStatusIndicator]
-"NoActiveProbe"=dword:00000001
-"DisablePassivePolling"=dword:00000001
+```powershell
+$msbuild = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\18\BuildTools\MSBuild\Current\Bin\MSBuild.exe"
+& $msbuild simplewall\simplewall.sln -p:Configuration=Release -p:Platform=x64 -p:PlatformToolset=v145 -m
 ```
----
-</details>
 
-<details>
-<summary>Solution 3: Disable NCSI through group policy:</summary>
+Результат: `simplewall\bin\64\simplewall.exe`. Сборка проходит без ошибок и предупреждений.
 
----
-1) Launch the group policy editor (`gpedit.msc` ).
-2) Go to `Computer Configuration -> Administrative Templates -> System -> Internet Communication Management -> Internet Communication Settings`.
-3) Double-click `Turn off Windows Network Connectivity Status Indicator active tests` and then select Enabled. Click Ok.
-4) Open the Command Prompt (Admin) and enter `gpupdate /force` to enforce the changes made to the Group Policies.
----
-</details>
+Сборка не побайтно воспроизводима: в exe попадают метки времени, поэтому хэш у каждого будет свой.
 
-#### Q: How can I disable Windows Firewall?
-Start the command line _as an administrator_, and enter the commands below.
+## Установка и использование
 
-<details>
-<summary>Disable Windows Firewall profiles:</summary>
+Установка не нужна. Для работы достаточно одного файла `simplewall.exe`: базовые правила вшиты внутрь, дополнительных DLL нет.
 
----
-~~~bat
-netsh advfirewall set allprofiles state off
-~~~
----
-</details>
+| Файл | Нужен? |
+|---|---|
+| `simplewall.exe` | да |
+| `simplewall.lng` | только для неанглийского интерфейса, кладётся рядом с exe |
+| `simplewall.pdb` | нет, это отладочные символы |
 
-<details>
-<summary>Enable Windows Firewall profiles:</summary>
+**Где хранятся настройки.** По умолчанию в `%APPDATA%\Henry++\simplewall\` (`simplewall.ini`, `profile.xml`). Если создать рядом с exe пустой файл `portable.dat`, настройки будут храниться в папке программы.
 
----
-~~~bat
-netsh advfirewall set allprofiles state on
-~~~
----
-</details>
+### Рекомендации при первом запуске
 
-#### Q: How can I view all filters information?
-Start the command line _as an administrator_, and enter the commands below.
+1. **Не ставьте галочку «Disable Windows Firewall».** simplewall и брандмауэр Windows работают через один механизм WFP и не мешают друг другу. Если simplewall упадёт или будет удалён, брандмауэр Windows продолжит защищать от входящих подключений.
+2. **Для первого включения выберите «Temporary rules».** Тогда при ошибке в настройке правила сбросятся после перезагрузки. Когда всё заработает, включите «Permanent rules».
+3. **Отключите проверку обновлений** (см. раздел про аудит).
+4. **Включите список блокировки.** В меню **Blocklist** включите *Microsoft spying and telemetry*. *Microsoft update* не блокируйте, иначе перестанет работать Windows Update.
+5. **Перед удалением exe нажмите «Disable filters».** Постоянные правила продолжают действовать и без программы.
 
-<details>
-<summary>Dump filters information saved into a `filters.xml` file:</summary>
+### Системные процессы Windows, которые просят доступ в сеть
 
----
-~~~bat
-cd /d %USERPROFILE%\Desktop
+| Процесс | Что это | Рекомендация |
+|---|---|---|
+| `svchost.exe` | службы Windows, включая Windows Update и DNS | разрешить |
+| `MoUsoCoreWorker.exe` | Update Orchestrator, управляет проверкой и установкой обновлений | разрешить, если нужны обновления |
+| `WaaSMedicAgent.exe` | Windows Update Medic, чинит сломанный Центр обновления | лучше разрешить; без него обновления работают, но без автопочинки |
+| `RUXIMICS.exe` | Reusable UX Interaction Manager (Update Health Tools): напоминания о конце поддержки Windows 10 и предложения Windows 11 / ESU | блокировать |
+| `DeviceCensus.exe` | телеметрия: сбор сведений о компьютере для Microsoft | блокировать |
+| Windows Default Lock Screen (`Microsoft.LockApp`) | картинки Spotlight, советы и реклама на экране блокировки | блокировать, если Spotlight не нужен |
 
-netsh wfp show filters
-~~~
----
-</details>
+simplewall фильтрует по приложению, а не по адресу: если вы разрешили одну программу, другие, которые обращаются к тому же серверу, доступа не получают.
 
-<details>
-<summary>Dump providers, callouts and layers information into a `wfpstate.xml` file:</summary>
+## Лицензия
 
----
-~~~bat
-cd /d %USERPROFILE%\Desktop
+simplewall и routine распространяются по лицензии [GNU GPL v3](https://github.com/henrypp/simplewall/blob/master/LICENSE). Если вы публикуете собранный exe, указывайте ссылки на исходный код и коммиты, из которых он собран (см. таблицу «Коротко»).
 
-netsh wfp show state
-~~~
----
-</details>
+Поддержать автора можно через ссылки в [README проекта](https://github.com/henrypp/simplewall#readme).
 
-Open it in any text editor and study.
-
-#### Q: How to fix Windows Update internet access?
-<details>
-<summary>Windows 10 and above:</summary>
-
----
-Open main window menu `Settings` -> `Rules` -> `Allow Windows Update`.
-<br />
-This is working by method described [here](https://github.com/henrypp/simplewall/issues/677).
-
----
-</details>
-
-<details>
-<summary>Windows 8.1:</summary>
-
----
-Open main window, Navigate into `System rules` tab and then enable `Windows Update service` rule.
-
----
-</details>
-
-#### Q: Other questions:
-- [Windows Security center integration (impossible)](https://stackoverflow.com/questions/3698285/how-can-i-tell-the-windows-security-center-that-im-an-antivirus/3698375#3698375)
-
-<details>
-<summary>Undocumented options:</summary>
-
----
-~~~ini
-IsSaveAppsWithEnvironment=TRUE # 4.0+
-IsNetworkMonitorEnabled=TRUE
-IsInternalRulesDisabled=FALSE
-IsBackupProfile=TRUE
-BackupPeriod=BACKUP_HOURS_PERIOD
-BackupTimestamp=0
-IsOCSPEnabled=FALSE
-UseStealthMode=TRUE
-~~~
-</details>
-
----
-- Website: [github.com/henrypp](https://github.com/henrypp)
-- Support: sforce5@mail.ru
----
-(c) 2016-2026 Henry++
